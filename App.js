@@ -6,7 +6,6 @@ import {
   ScrollView,
   Alert,
   Modal,
-  FlatList,
   TouchableOpacity,
   SafeAreaView,
 } from 'react-native';
@@ -18,274 +17,287 @@ import * as jalaali from 'jalaali-js';
 
 const Tab = createMaterialTopTabNavigator();
 
-// تبدیل تاریخ میلادی به شمسی
+// تبدیل تاریخ به شمسی
 const toJalaali = (date) => {
   const jd = jalaali.toJalaali(date);
   return `${jd.jy}/${String(jd.jm).padStart(2, '0')}/${String(jd.jd).padStart(2, '0')}`;
 };
 
-// ذخیره و بارگذاری
-const saveToStorage = async (key, data) => {
-  await AsyncStorage.setItem(key, JSON.stringify(data));
+// ذخیره و بازیابی
+const saveData = async (key, value) => {
+  await AsyncStorage.setItem(key, JSON.stringify(value));
 };
 
-const loadFromStorage = async (key) => {
-  const json = await AsyncStorage.getItem(key);
-  return json ? JSON.parse(json) : [];
+const getData = async (key) => {
+  const data = await AsyncStorage.getItem(key);
+  return data ? JSON.parse(data) : null;
 };
 
-// محاسبه وضعیت و رنگ
-const calculateStatus = (lastKm, nextKm, currentKm, nextDate) => {
-  const today = new Date();
-  const next = new Date(nextDate);
-  const daysLeft = Math.ceil((next - today) / (1000 * 60 * 60 * 24));
-  const kmLeft = nextKm - currentKm;
-  const percentKm = ((nextKm - lastKm) - kmLeft) / (nextKm - lastKm) * 100;
-
-  if (kmLeft <= 0 || daysLeft <= 0) return { color: '#FFCDD2', text: '🔥 منقضی شده' };
-  if (daysLeft <= 15 || percentKm >= 85) return { color: '#FFCDD2', text: '🔴 فوری' };
-  if (daysLeft <= 45 || percentKm >= 60) return { color: '#FFE0B2', text: '🟠 نزدیک است' };
-  return { color: '#C8E6C9', text: '✅ عادی' };
-};
-
-// صفحه سرویس‌های هر خودرو
-const CarServicesScreen = ({ car, onCarDelete, onCarUpdate }) => {
+// صفحه اصلی هر خودرو
+const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
   const [services, setServices] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [formTitle, setFormTitle] = useState('');
-  const [formLastKm, setFormLastKm] = useState('');
-  const [formNextKm, setFormNextKm] = useState('');
-  const [formLastDate, setFormLastDate] = useState(new Date());
-  const [formNextDate, setFormNextDate] = useState(new Date());
-  const [formNote, setFormNote] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  
+  // فرم
+  const [serviceTitle, setServiceTitle] = useState('');
+  const [serviceLastKm, setServiceLastKm] = useState('');
+  const [serviceNextKm, setServiceNextKm] = useState('');
+  const [serviceLastDate, setServiceLastDate] = useState(new Date());
+  const [serviceNextDate, setServiceNextDate] = useState(new Date());
+  const [serviceNote, setServiceNote] = useState('');
+  
+  // Picker state
   const [showLastPicker, setShowLastPicker] = useState(false);
   const [showNextPicker, setShowNextPicker] = useState(false);
+  
+  // کیلومتر فعلی خودرو
   const [currentKm, setCurrentKm] = useState(car.currentKm);
 
+  // بارگذاری سرویس‌ها
   useEffect(() => {
     loadServices();
   }, []);
 
   const loadServices = async () => {
-    const data = await loadFromStorage(`services_${car.id}`);
-    setServices(data);
+    const saved = await getData(`services_${car.id}`);
+    if (saved) setServices(saved);
   };
 
-  const saveServices = async (newData) => {
-    await saveToStorage(`services_${car.id}`, newData);
-    setServices(newData);
+  const saveServices = async (newServices) => {
+    await saveData(`services_${car.id}`, newServices);
+    setServices(newServices);
   };
 
-  const openAddModal = () => {
-    setEditId(null);
-    setFormTitle('');
-    setFormLastKm('');
-    setFormNextKm('');
-    setFormLastDate(new Date());
-    setFormNextDate(new Date());
-    setFormNote('');
-    setShowModal(true);
+  // محاسبه رنگ کارت
+  const getCardColor = (item) => {
+    const today = new Date();
+    const next = new Date(item.nextDate);
+    const daysLeft = Math.ceil((next - today) / (1000 * 60 * 60 * 24));
+    const kmLeft = item.nextKm - currentKm;
+    
+    if (kmLeft <= 0 || daysLeft <= 0) return '#FFCDD2';
+    if (daysLeft <= 15 || kmLeft <= 500) return '#FFCDD2';
+    if (daysLeft <= 45 || kmLeft <= 2000) return '#FFE0B2';
+    return '#C8E6C9';
   };
 
-  const openEditModal = (item) => {
-    setEditId(item.id);
-    setFormTitle(item.title);
-    setFormLastKm(item.lastKm.toString());
-    setFormNextKm(item.nextKm.toString());
-    setFormLastDate(new Date(item.lastDate));
-    setFormNextDate(new Date(item.nextDate));
-    setFormNote(item.note);
-    setShowModal(true);
+  const getStatusText = (item) => {
+    const today = new Date();
+    const next = new Date(item.nextDate);
+    const daysLeft = Math.ceil((next - today) / (1000 * 60 * 60 * 24));
+    const kmLeft = item.nextKm - currentKm;
+    
+    if (kmLeft <= 0 || daysLeft <= 0) return '🔥 منقضی شده';
+    if (daysLeft <= 15 || kmLeft <= 500) return '🔴 فوری';
+    if (daysLeft <= 45 || kmLeft <= 2000) return '🟠 نزدیک است';
+    return '✅ عادی';
   };
 
-  const saveService = () => {
-    if (!formTitle || !formLastKm || !formNextKm) {
+  // افزودن سرویس جدید
+  const openAddService = () => {
+    setEditingService(null);
+    setServiceTitle('');
+    setServiceLastKm('');
+    setServiceNextKm('');
+    setServiceLastDate(new Date());
+    setServiceNextDate(new Date());
+    setServiceNote('');
+    setModalVisible(true);
+  };
+
+  // ویرایش سرویس
+  const openEditService = (item) => {
+    setEditingService(item);
+    setServiceTitle(item.title);
+    setServiceLastKm(String(item.lastKm));
+    setServiceNextKm(String(item.nextKm));
+    setServiceLastDate(new Date(item.lastDate));
+    setServiceNextDate(new Date(item.nextDate));
+    setServiceNote(item.note || '');
+    setModalVisible(true);
+  };
+
+  // ذخیره سرویس
+  const handleSaveService = () => {
+    if (!serviceTitle || !serviceLastKm || !serviceNextKm) {
       Alert.alert('خطا', 'لطفاً عنوان و کیلومتر را وارد کنید');
       return;
     }
 
     const newService = {
-      id: editId || Date.now().toString(),
-      title: formTitle,
-      lastKm: parseInt(formLastKm),
-      nextKm: parseInt(formNextKm),
-      lastDate: formLastDate.toISOString(),
-      nextDate: formNextDate.toISOString(),
-      note: formNote,
+      id: editingService ? editingService.id : Date.now().toString(),
+      title: serviceTitle,
+      lastKm: Number(serviceLastKm),
+      nextKm: Number(serviceNextKm),
+      lastDate: serviceLastDate.toISOString(),
+      nextDate: serviceNextDate.toISOString(),
+      note: serviceNote,
     };
 
     let newServices;
-    if (editId) {
-      newServices = services.map(s => s.id === editId ? newService : s);
+    if (editingService) {
+      newServices = services.map(s => s.id === editingService.id ? newService : s);
     } else {
       newServices = [...services, newService];
     }
     saveServices(newServices);
-    setShowModal(false);
+    setModalVisible(false);
   };
 
-  const deleteService = (id) => {
+  // حذف سرویس
+  const handleDeleteService = (id) => {
     Alert.alert('حذف', 'آیا این سرویس حذف شود؟', [
       { text: 'انصراف' },
       { text: 'حذف', onPress: () => saveServices(services.filter(s => s.id !== id)) },
     ]);
   };
 
-  const updateCurrentKm = () => {
-    Alert.prompt('ویرایش کیلومتر', 'کیلومتر فعلی خودرو را وارد کنید', [
+  // ویرایش کیلومتر خودرو
+  const editCurrentKm = () => {
+    Alert.prompt('ویرایش کیلومتر', 'کیلومتر فعلی را وارد کنید', [
       { text: 'انصراف' },
       {
         text: 'ذخیره',
         onPress: (value) => {
-          const km = parseInt(value);
+          const km = Number(value);
           if (!isNaN(km)) {
             setCurrentKm(km);
-            onCarUpdate(car.id, km);
+            onUpdateCar(car.id, km);
           }
         },
       },
     ]);
   };
 
-  const renderServiceItem = ({ item }) => {
-    const status = calculateStatus(item.lastKm, item.nextKm, currentKm, item.nextDate);
-    return (
-      <View style={{ marginBottom: 12, backgroundColor: status.color, borderRadius: 16, padding: 12 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{item.title}</Text>
-          <View style={{ flexDirection: 'row' }}>
-            <TouchableOpacity onPress={() => openEditModal(item)} style={{ padding: 8 }}>
-              <Text style={{ fontSize: 18 }}>✏️</Text>
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F8' }}>
+      <ScrollView style={{ flex: 1, padding: 12 }}>
+        {/* کارت اطلاعات خودرو */}
+        <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontSize: 22, fontWeight: 'bold' }}>🚗 {car.name}</Text>
+            <TouchableOpacity onPress={() => onDeleteCar(car.id)} style={{ padding: 8 }}>
+              <Text style={{ fontSize: 22, color: 'red' }}>🗑️</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => deleteService(item.id)} style={{ padding: 8 }}>
-              <Text style={{ fontSize: 18 }}>🗑️</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+            <Text style={{ fontSize: 16 }}>📅 کیلومتر فعلی: {currentKm.toLocaleString()}</Text>
+            <TouchableOpacity onPress={editCurrentKm} style={{ padding: 8 }}>
+              <Text style={{ fontSize: 18 }}>✏️</Text>
             </TouchableOpacity>
           </View>
         </View>
-        <Text>📅 آخرین: {toJalaali(new Date(item.lastDate))} - {item.lastKm.toLocaleString()} کیلومتر</Text>
-        <Text>⏳ موعد بعدی: {toJalaali(new Date(item.nextDate))} یا {item.nextKm.toLocaleString()} کیلومتر</Text>
-        <Text style={{ fontWeight: 'bold', marginTop: 4 }}>{status.text}</Text>
-        {item.note ? <Text>📝 {item.note}</Text> : null}
-      </View>
-    );
-  };
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
-      <FlatList
-        data={services}
-        keyExtractor={item => item.id}
-        renderItem={renderServiceItem}
-        ListHeaderComponent={
-          <View style={{ margin: 12, padding: 16, backgroundColor: 'white', borderRadius: 20 }}>
+        {/* لیست سرویس‌ها */}
+        {services.map((item) => (
+          <View key={item.id} style={{ backgroundColor: getCardColor(item), borderRadius: 16, padding: 12, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 22, fontWeight: 'bold' }}>🚗 {car.name}</Text>
-              <TouchableOpacity onPress={() => onCarDelete(car.id)} style={{ padding: 8 }}>
-                <Text style={{ fontSize: 20, color: 'red' }}>🗑️</Text>
-              </TouchableOpacity>
+              <Text style={{ fontSize: 16, fontWeight: 'bold' }}>{item.title}</Text>
+              <View style={{ flexDirection: 'row' }}>
+                <TouchableOpacity onPress={() => openEditService(item)} style={{ padding: 8 }}>
+                  <Text style={{ fontSize: 18 }}>✏️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteService(item.id)} style={{ padding: 8 }}>
+                  <Text style={{ fontSize: 18 }}>🗑️</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-              <Text style={{ fontSize: 16 }}>📅 کیلومتر فعلی: {currentKm.toLocaleString()} کیلومتر</Text>
-              <TouchableOpacity onPress={updateCurrentKm} style={{ padding: 8 }}>
-                <Text style={{ fontSize: 18 }}>✏️</Text>
-              </TouchableOpacity>
-            </View>
+            <Text>📅 آخرین: {toJalaali(new Date(item.lastDate))} - {item.lastKm.toLocaleString()} کیلومتر</Text>
+            <Text>⏳ موعد بعدی: {toJalaali(new Date(item.nextDate))} یا {item.nextKm.toLocaleString()} کیلومتر</Text>
+            <Text style={{ fontWeight: 'bold', marginTop: 4 }}>{getStatusText(item)}</Text>
+            {item.note ? <Text>📝 {item.note}</Text> : null}
           </View>
-        }
-        ListFooterComponent={
-          <TouchableOpacity
-            onPress={openAddModal}
-            style={{ backgroundColor: '#1E4D6F', margin: 12, padding: 14, borderRadius: 12, alignItems: 'center' }}
-          >
-            <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>➕ افزودن سرویس جدید</Text>
-          </TouchableOpacity>
-        }
-      />
+        ))}
+
+        {/* دکمه افزودن سرویس */}
+        <TouchableOpacity
+          onPress={openAddService}
+          style={{ backgroundColor: '#1E4D6F', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 }}
+        >
+          <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>➕ افزودن سرویس جدید</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* مودال فرم سرویس */}
-      <Modal visible={showModal} transparent animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
-          <ScrollView style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
             <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15 }}>
-              {editId ? 'ویرایش سرویس' : 'سرویس جدید'}
+              {editingService ? 'ویرایش سرویس' : 'سرویس جدید'}
             </Text>
 
             <TextInput
               placeholder="عنوان سرویس"
-              placeholderTextColor="#999"
-              value={formTitle}
-              onChangeText={setFormTitle}
+              value={serviceTitle}
+              onChangeText={setServiceTitle}
               style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}
             />
 
             <TextInput
               placeholder="کیلومتر آخرین بار"
-              placeholderTextColor="#999"
-              value={formLastKm}
-              onChangeText={setFormLastKm}
+              value={serviceLastKm}
+              onChangeText={setServiceLastKm}
               keyboardType="numeric"
               style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}
             />
 
             <TextInput
               placeholder="کیلومتر بعدی"
-              placeholderTextColor="#999"
-              value={formNextKm}
-              onChangeText={setFormNextKm}
+              value={serviceNextKm}
+              onChangeText={setServiceNextKm}
               keyboardType="numeric"
               style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}
             />
 
             <TouchableOpacity onPress={() => setShowLastPicker(true)} style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}>
-              <Text>📅 تاریخ آخرین: {toJalaali(formLastDate)}</Text>
+              <Text>📅 تاریخ آخرین: {toJalaali(serviceLastDate)}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setShowNextPicker(true)} style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}>
-              <Text>📅 تاریخ بعدی: {toJalaali(formNextDate)}</Text>
+              <Text>📅 تاریخ بعدی: {toJalaali(serviceNextDate)}</Text>
             </TouchableOpacity>
 
             <TextInput
               placeholder="یادداشت (اختیاری)"
-              placeholderTextColor="#999"
-              value={formNote}
-              onChangeText={setFormNote}
+              value={serviceNote}
+              onChangeText={setServiceNote}
               multiline
               style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 60 }}
             />
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-              <TouchableOpacity onPress={() => setShowModal(false)} style={{ padding: 12, backgroundColor: '#CCC', borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={{ backgroundColor: '#CCC', padding: 12, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}>
                 <Text>انصراف</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={saveService} style={{ padding: 12, backgroundColor: '#1E4D6F', borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}>
+              <TouchableOpacity onPress={handleSaveService} style={{ backgroundColor: '#1E4D6F', padding: 12, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}>
                 <Text style={{ color: 'white' }}>ذخیره</Text>
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </View>
         </View>
       </Modal>
 
       {showLastPicker && (
         <DateTimePicker
-          value={formLastDate}
+          value={serviceLastDate}
           mode="date"
           display="default"
           onChange={(e, date) => {
             setShowLastPicker(false);
-            if (date) setFormLastDate(date);
+            if (date) setServiceLastDate(date);
           }}
         />
       )}
 
       {showNextPicker && (
         <DateTimePicker
-          value={formNextDate}
+          value={serviceNextDate}
           mode="date"
           display="default"
           onChange={(e, date) => {
             setShowNextPicker(false);
-            if (date) setFormNextDate(date);
+            if (date) setServiceNextDate(date);
           }}
         />
       )}
@@ -303,15 +315,17 @@ export default function App() {
   }, []);
 
   const loadCars = async () => {
-    let saved = await loadFromStorage('cars');
-    if (saved.length === 0) {
-      saved = [
+    const saved = await getData('cars');
+    if (saved && saved.length > 0) {
+      setCars(saved);
+    } else {
+      const defaultCars = [
         { id: '1', name: 'Nissan Juke', currentKm: 25000 },
         { id: '2', name: 'BMW X3', currentKm: 18000 },
       ];
-      await saveToStorage('cars', saved);
+      setCars(defaultCars);
+      await saveData('cars', defaultCars);
     }
-    setCars(saved);
     setLoading(false);
   };
 
@@ -328,7 +342,7 @@ export default function App() {
               currentKm: 0,
             };
             const newCars = [...cars, newCar];
-            saveToStorage('cars', newCars);
+            saveData('cars', newCars);
             setCars(newCars);
             Alert.alert('موفق', 'خودرو اضافه شد');
           } else {
@@ -340,13 +354,13 @@ export default function App() {
   };
 
   const deleteCar = (id) => {
-    Alert.alert('حذف خودرو', 'آیا از حذف این خودرو اطمینان دارید؟', [
+    Alert.alert('حذف خودرو', 'آیا مطمئن هستید؟', [
       { text: 'انصراف' },
       {
         text: 'حذف',
         onPress: async () => {
-          const newCars = cars.filter(car => car.id !== id);
-          await saveToStorage('cars', newCars);
+          const newCars = cars.filter(c => c.id !== id);
+          await saveData('cars', newCars);
           setCars(newCars);
           Alert.alert('موفق', 'خودرو حذف شد');
         },
@@ -355,14 +369,14 @@ export default function App() {
   };
 
   const updateCarKm = (id, newKm) => {
-    const newCars = cars.map(car => car.id === id ? { ...car, currentKm: newKm } : car);
-    saveToStorage('cars', newCars);
+    const newCars = cars.map(c => c.id === id ? { ...c, currentKm: newKm } : c);
+    saveData('cars', newCars);
     setCars(newCars);
   };
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>در حال بارگذاری...</Text>
       </View>
     );
@@ -379,12 +393,12 @@ export default function App() {
       >
         {cars.map(car => (
           <Tab.Screen key={car.id} name={car.name}>
-            {() => <CarServicesScreen car={car} onCarDelete={deleteCar} onCarUpdate={updateCarKm} />}
+            {() => <CarPage car={car} onDeleteCar={deleteCar} onUpdateCar={updateCarKm} />}
           </Tab.Screen>
         ))}
       </Tab.Navigator>
 
-      {/* دکمه افزودن خودرو جدید */}
+      {/* دکمه افزودن خودرو */}
       <TouchableOpacity
         onPress={addCar}
         style={{
