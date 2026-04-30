@@ -17,13 +17,11 @@ import * as jalaali from 'jalaali-js';
 
 const Tab = createMaterialTopTabNavigator();
 
-// تبدیل تاریخ به شمسی
 const toJalaali = (date) => {
   const jd = jalaali.toJalaali(date);
   return `${jd.jy}/${String(jd.jm).padStart(2, '0')}/${String(jd.jd).padStart(2, '0')}`;
 };
 
-// ذخیره و بازیابی
 const saveData = async (key, value) => {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 };
@@ -47,6 +45,10 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
   const [showLastPicker, setShowLastPicker] = useState(false);
   const [showNextPicker, setShowNextPicker] = useState(false);
   const [currentKm, setCurrentKm] = useState(car.currentKm);
+  
+  // Modal برای ویرایش کیلومتر
+  const [kmModalVisible, setKmModalVisible] = useState(false);
+  const [tempKm, setTempKm] = useState('');
 
   useEffect(() => {
     loadServices();
@@ -137,20 +139,18 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     ]);
   };
 
-  const editCurrentKm = () => {
-    Alert.prompt('ویرایش کیلومتر', 'کیلومتر فعلی را وارد کنید', [
-      { text: 'انصراف' },
-      {
-        text: 'ذخیره',
-        onPress: (value) => {
-          const km = Number(value);
-          if (!isNaN(km)) {
-            setCurrentKm(km);
-            onUpdateCar(car.id, km);
-          }
-        },
-      },
-    ]);
+  const openKmModal = () => {
+    setTempKm(currentKm.toString());
+    setKmModalVisible(true);
+  };
+
+  const saveKm = () => {
+    const km = Number(tempKm);
+    if (!isNaN(km)) {
+      setCurrentKm(km);
+      onUpdateCar(car.id, km);
+    }
+    setKmModalVisible(false);
   };
 
   return (
@@ -165,7 +165,7 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
             <Text style={{ fontSize: 16 }}>📅 کیلومتر فعلی: {currentKm.toLocaleString()}</Text>
-            <TouchableOpacity onPress={editCurrentKm} style={{ padding: 8 }}>
+            <TouchableOpacity onPress={openKmModal} style={{ padding: 8 }}>
               <Text style={{ fontSize: 18 }}>✏️</Text>
             </TouchableOpacity>
           </View>
@@ -199,6 +199,7 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* مودال فرم سرویس */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
           <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
@@ -223,6 +224,26 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
         </View>
       </Modal>
 
+      {/* مودال ویرایش کیلومتر */}
+      <Modal visible={kmModalVisible} transparent animationType="fade">
+        <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15 }}>ویرایش کیلومتر فعلی</Text>
+            <TextInput
+              placeholder="کیلومتر خودرو را وارد کنید"
+              value={tempKm}
+              onChangeText={setTempKm}
+              keyboardType="numeric"
+              style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 20, fontSize: 16 }}
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity onPress={() => setKmModalVisible(false)} style={{ backgroundColor: '#CCC', padding: 12, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}><Text>انصراف</Text></TouchableOpacity>
+              <TouchableOpacity onPress={saveKm} style={{ backgroundColor: '#1E4D6F', padding: 12, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}><Text style={{ color: 'white' }}>ذخیره</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {showLastPicker && <DateTimePicker value={serviceLastDate} mode="date" display="default" onChange={(e, date) => { setShowLastPicker(false); if (date) setServiceLastDate(date); }} />}
       {showNextPicker && <DateTimePicker value={serviceNextDate} mode="date" display="default" onChange={(e, date) => { setShowNextPicker(false); if (date) setServiceNextDate(date); }} />}
     </SafeAreaView>
@@ -232,6 +253,8 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
 // اپلیکیشن اصلی
 export default function App() {
   const [cars, setCars] = useState([]);
+  const [carModalVisible, setCarModalVisible] = useState(false);
+  const [newCarName, setNewCarName] = useState('');
 
   useEffect(() => {
     loadCars();
@@ -252,23 +275,22 @@ export default function App() {
   };
 
   const addCar = () => {
-    Alert.prompt('خودرو جدید', 'نام خودرو را وارد کنید', [
-      { text: 'انصراف' },
-      {
-        text: 'افزودن',
-        onPress: (name) => {
-          if (name && name.trim()) {
-            const newCar = { id: Date.now().toString(), name: name.trim(), currentKm: 0 };
-            const newCars = [...cars, newCar];
-            saveData('cars', newCars);
-            setCars(newCars);
-            Alert.alert('موفق', 'خودرو اضافه شد');
-          } else {
-            Alert.alert('خطا', 'نام خودرو را وارد کنید');
-          }
-        },
-      },
-    ]);
+    setNewCarName('');
+    setCarModalVisible(true);
+  };
+
+  const saveNewCar = () => {
+    if (newCarName && newCarName.trim()) {
+      const newCar = { id: Date.now().toString(), name: newCarName.trim(), currentKm: 0 };
+      const newCars = [...cars, newCar];
+      saveData('cars', newCars);
+      setCars(newCars);
+      setCarModalVisible(false);
+      setNewCarName('');
+      Alert.alert('موفق', 'خودرو اضافه شد');
+    } else {
+      Alert.alert('خطا', 'لطفاً نام خودرو را وارد کنید');
+    }
   };
 
   const deleteCar = (id) => {
@@ -292,7 +314,6 @@ export default function App() {
     setCars(newCars);
   };
 
-  // اگر خودرویی وجود نداشت، یک صفحه خالی نشان بده
   if (cars.length === 0) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -310,9 +331,44 @@ export default function App() {
           </Tab.Screen>
         ))}
       </Tab.Navigator>
-      <TouchableOpacity onPress={addCar} style={{ position: 'absolute', right: 20, bottom: 20, backgroundColor: '#1E4D6F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
+
+      {/* دکمه افزودن خودرو با مودال */}
+      <TouchableOpacity
+        onPress={addCar}
+        style={{
+          position: 'absolute',
+          right: 20,
+          bottom: 20,
+          backgroundColor: '#1E4D6F',
+          width: 56,
+          height: 56,
+          borderRadius: 28,
+          justifyContent: 'center',
+          alignItems: 'center',
+          elevation: 5,
+        }}
+      >
         <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>+</Text>
       </TouchableOpacity>
+
+      {/* مودال افزودن خودرو */}
+      <Modal visible={carModalVisible} transparent animationType="fade">
+        <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
+          <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15 }}>خودرو جدید</Text>
+            <TextInput
+              placeholder="نام خودرو را وارد کنید"
+              value={newCarName}
+              onChangeText={setNewCarName}
+              style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 20, fontSize: 16 }}
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity onPress={() => setCarModalVisible(false)} style={{ backgroundColor: '#CCC', padding: 12, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}><Text>انصراف</Text></TouchableOpacity>
+              <TouchableOpacity onPress={saveNewCar} style={{ backgroundColor: '#1E4D6F', padding: 12, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}><Text style={{ color: 'white' }}>افزودن</Text></TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </NavigationContainer>
   );
 }

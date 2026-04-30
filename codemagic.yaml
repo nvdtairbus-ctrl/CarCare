@@ -1,6 +1,6 @@
 workflows:
-  android-dev-client:
-    name: Android Development Client
+  android-production:
+    name: Android Production Build
     max_build_duration: 60
     environment:
       node: 20
@@ -9,9 +9,9 @@ workflows:
         script: npm install
       - name: Prebuild Expo project
         script: npx expo prebuild --platform android --clean
-      - name: Build Debug APK
+      - name: Build Release APK
         script: |
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/**/**/*.apk
