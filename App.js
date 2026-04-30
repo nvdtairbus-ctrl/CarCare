@@ -33,28 +33,21 @@ const getData = async (key) => {
   return data ? JSON.parse(data) : null;
 };
 
-// صفحه اصلی هر خودرو
+// صفحه هر خودرو
 const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
   const [services, setServices] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState(null);
-  
-  // فرم
   const [serviceTitle, setServiceTitle] = useState('');
   const [serviceLastKm, setServiceLastKm] = useState('');
   const [serviceNextKm, setServiceNextKm] = useState('');
   const [serviceLastDate, setServiceLastDate] = useState(new Date());
   const [serviceNextDate, setServiceNextDate] = useState(new Date());
   const [serviceNote, setServiceNote] = useState('');
-  
-  // Picker state
   const [showLastPicker, setShowLastPicker] = useState(false);
   const [showNextPicker, setShowNextPicker] = useState(false);
-  
-  // کیلومتر فعلی خودرو
   const [currentKm, setCurrentKm] = useState(car.currentKm);
 
-  // بارگذاری سرویس‌ها
   useEffect(() => {
     loadServices();
   }, []);
@@ -69,13 +62,11 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     setServices(newServices);
   };
 
-  // محاسبه رنگ کارت
   const getCardColor = (item) => {
     const today = new Date();
     const next = new Date(item.nextDate);
     const daysLeft = Math.ceil((next - today) / (1000 * 60 * 60 * 24));
     const kmLeft = item.nextKm - currentKm;
-    
     if (kmLeft <= 0 || daysLeft <= 0) return '#FFCDD2';
     if (daysLeft <= 15 || kmLeft <= 500) return '#FFCDD2';
     if (daysLeft <= 45 || kmLeft <= 2000) return '#FFE0B2';
@@ -87,14 +78,12 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     const next = new Date(item.nextDate);
     const daysLeft = Math.ceil((next - today) / (1000 * 60 * 60 * 24));
     const kmLeft = item.nextKm - currentKm;
-    
     if (kmLeft <= 0 || daysLeft <= 0) return '🔥 منقضی شده';
     if (daysLeft <= 15 || kmLeft <= 500) return '🔴 فوری';
     if (daysLeft <= 45 || kmLeft <= 2000) return '🟠 نزدیک است';
     return '✅ عادی';
   };
 
-  // افزودن سرویس جدید
   const openAddService = () => {
     setEditingService(null);
     setServiceTitle('');
@@ -106,7 +95,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     setModalVisible(true);
   };
 
-  // ویرایش سرویس
   const openEditService = (item) => {
     setEditingService(item);
     setServiceTitle(item.title);
@@ -118,13 +106,11 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     setModalVisible(true);
   };
 
-  // ذخیره سرویس
   const handleSaveService = () => {
     if (!serviceTitle || !serviceLastKm || !serviceNextKm) {
       Alert.alert('خطا', 'لطفاً عنوان و کیلومتر را وارد کنید');
       return;
     }
-
     const newService = {
       id: editingService ? editingService.id : Date.now().toString(),
       title: serviceTitle,
@@ -134,7 +120,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
       nextDate: serviceNextDate.toISOString(),
       note: serviceNote,
     };
-
     let newServices;
     if (editingService) {
       newServices = services.map(s => s.id === editingService.id ? newService : s);
@@ -145,7 +130,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     setModalVisible(false);
   };
 
-  // حذف سرویس
   const handleDeleteService = (id) => {
     Alert.alert('حذف', 'آیا این سرویس حذف شود؟', [
       { text: 'انصراف' },
@@ -153,7 +137,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
     ]);
   };
 
-  // ویرایش کیلومتر خودرو
   const editCurrentKm = () => {
     Alert.prompt('ویرایش کیلومتر', 'کیلومتر فعلی را وارد کنید', [
       { text: 'انصراف' },
@@ -173,7 +156,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4F8' }}>
       <ScrollView style={{ flex: 1, padding: 12 }}>
-        {/* کارت اطلاعات خودرو */}
         <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 16, marginBottom: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ fontSize: 22, fontWeight: 'bold' }}>🚗 {car.name}</Text>
@@ -189,7 +171,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
           </View>
         </View>
 
-        {/* لیست سرویس‌ها */}
         {services.map((item) => (
           <View key={item.id} style={{ backgroundColor: getCardColor(item), borderRadius: 16, padding: 12, marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -210,7 +191,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
           </View>
         ))}
 
-        {/* دکمه افزودن سرویس */}
         <TouchableOpacity
           onPress={openAddService}
           style={{ backgroundColor: '#1E4D6F', padding: 14, borderRadius: 12, alignItems: 'center', marginTop: 8 }}
@@ -219,88 +199,32 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* مودال فرم سرویس */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)', padding: 20 }}>
           <View style={{ backgroundColor: 'white', borderRadius: 20, padding: 20 }}>
             <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 15 }}>
               {editingService ? 'ویرایش سرویس' : 'سرویس جدید'}
             </Text>
-
-            <TextInput
-              placeholder="عنوان سرویس"
-              value={serviceTitle}
-              onChangeText={setServiceTitle}
-              style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}
-            />
-
-            <TextInput
-              placeholder="کیلومتر آخرین بار"
-              value={serviceLastKm}
-              onChangeText={setServiceLastKm}
-              keyboardType="numeric"
-              style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}
-            />
-
-            <TextInput
-              placeholder="کیلومتر بعدی"
-              value={serviceNextKm}
-              onChangeText={setServiceNextKm}
-              keyboardType="numeric"
-              style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}
-            />
-
+            <TextInput placeholder="عنوان سرویس" value={serviceTitle} onChangeText={setServiceTitle} style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }} />
+            <TextInput placeholder="کیلومتر آخرین بار" value={serviceLastKm} onChangeText={setServiceLastKm} keyboardType="numeric" style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }} />
+            <TextInput placeholder="کیلومتر بعدی" value={serviceNextKm} onChangeText={setServiceNextKm} keyboardType="numeric" style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }} />
             <TouchableOpacity onPress={() => setShowLastPicker(true)} style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}>
               <Text>📅 تاریخ آخرین: {toJalaali(serviceLastDate)}</Text>
             </TouchableOpacity>
-
             <TouchableOpacity onPress={() => setShowNextPicker(true)} style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12 }}>
               <Text>📅 تاریخ بعدی: {toJalaali(serviceNextDate)}</Text>
             </TouchableOpacity>
-
-            <TextInput
-              placeholder="یادداشت (اختیاری)"
-              value={serviceNote}
-              onChangeText={setServiceNote}
-              multiline
-              style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 60 }}
-            />
-
+            <TextInput placeholder="یادداشت (اختیاری)" value={serviceNote} onChangeText={setServiceNote} multiline style={{ borderWidth: 1, borderColor: '#CCC', borderRadius: 8, padding: 10, marginBottom: 12, minHeight: 60 }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={{ backgroundColor: '#CCC', padding: 12, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}>
-                <Text>انصراف</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSaveService} style={{ backgroundColor: '#1E4D6F', padding: 12, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}>
-                <Text style={{ color: 'white' }}>ذخیره</Text>
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={{ backgroundColor: '#CCC', padding: 12, borderRadius: 8, flex: 1, marginRight: 8, alignItems: 'center' }}><Text>انصراف</Text></TouchableOpacity>
+              <TouchableOpacity onPress={handleSaveService} style={{ backgroundColor: '#1E4D6F', padding: 12, borderRadius: 8, flex: 1, marginLeft: 8, alignItems: 'center' }}><Text style={{ color: 'white' }}>ذخیره</Text></TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {showLastPicker && (
-        <DateTimePicker
-          value={serviceLastDate}
-          mode="date"
-          display="default"
-          onChange={(e, date) => {
-            setShowLastPicker(false);
-            if (date) setServiceLastDate(date);
-          }}
-        />
-      )}
-
-      {showNextPicker && (
-        <DateTimePicker
-          value={serviceNextDate}
-          mode="date"
-          display="default"
-          onChange={(e, date) => {
-            setShowNextPicker(false);
-            if (date) setServiceNextDate(date);
-          }}
-        />
-      )}
+      {showLastPicker && <DateTimePicker value={serviceLastDate} mode="date" display="default" onChange={(e, date) => { setShowLastPicker(false); if (date) setServiceLastDate(date); }} />}
+      {showNextPicker && <DateTimePicker value={serviceNextDate} mode="date" display="default" onChange={(e, date) => { setShowNextPicker(false); if (date) setServiceNextDate(date); }} />}
     </SafeAreaView>
   );
 };
@@ -308,7 +232,6 @@ const CarPage = ({ car, onDeleteCar, onUpdateCar }) => {
 // اپلیکیشن اصلی
 export default function App() {
   const [cars, setCars] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadCars();
@@ -326,7 +249,6 @@ export default function App() {
       setCars(defaultCars);
       await saveData('cars', defaultCars);
     }
-    setLoading(false);
   };
 
   const addCar = () => {
@@ -336,11 +258,7 @@ export default function App() {
         text: 'افزودن',
         onPress: (name) => {
           if (name && name.trim()) {
-            const newCar = {
-              id: Date.now().toString(),
-              name: name.trim(),
-              currentKm: 0,
-            };
+            const newCar = { id: Date.now().toString(), name: name.trim(), currentKm: 0 };
             const newCars = [...cars, newCar];
             saveData('cars', newCars);
             setCars(newCars);
@@ -374,7 +292,8 @@ export default function App() {
     setCars(newCars);
   };
 
-  if (loading) {
+  // اگر خودرویی وجود نداشت، یک صفحه خالی نشان بده
+  if (cars.length === 0) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>در حال بارگذاری...</Text>
@@ -384,36 +303,14 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={{
-          tabBarStyle: { backgroundColor: '#1E4D6F' },
-          tabBarIndicatorStyle: { backgroundColor: '#FF9800' },
-          tabBarLabelStyle: { fontSize: 14, fontWeight: 'bold', color: 'white' },
-        }}
-      >
+      <Tab.Navigator screenOptions={{ tabBarStyle: { backgroundColor: '#1E4D6F' }, tabBarIndicatorStyle: { backgroundColor: '#FF9800' }, tabBarLabelStyle: { fontSize: 14, fontWeight: 'bold', color: 'white' } }}>
         {cars.map(car => (
           <Tab.Screen key={car.id} name={car.name}>
             {() => <CarPage car={car} onDeleteCar={deleteCar} onUpdateCar={updateCarKm} />}
           </Tab.Screen>
         ))}
       </Tab.Navigator>
-
-      {/* دکمه افزودن خودرو */}
-      <TouchableOpacity
-        onPress={addCar}
-        style={{
-          position: 'absolute',
-          right: 20,
-          bottom: 20,
-          backgroundColor: '#1E4D6F',
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          justifyContent: 'center',
-          alignItems: 'center',
-          elevation: 5,
-        }}
-      >
+      <TouchableOpacity onPress={addCar} style={{ position: 'absolute', right: 20, bottom: 20, backgroundColor: '#1E4D6F', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5 }}>
         <Text style={{ color: 'white', fontSize: 24, fontWeight: 'bold' }}>+</Text>
       </TouchableOpacity>
     </NavigationContainer>
